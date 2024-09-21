@@ -4,6 +4,7 @@ import pandas as pd
 import json
 from datetime import datetime, timedelta
 from io import BytesIO
+import time
 
 
 def get_reg_cd_from_site(site, json_data):
@@ -69,12 +70,25 @@ def process_weather_data(base_date, reg_cd, site):
     tomorrow['tm'] = tomorrow.apply(
         lambda row: pd.to_datetime(f"{row['fcstDate'].strftime('%Y-%m-%d')} {row['fcstTime']}"), axis=1)
 
-    today = today.rename(columns={'srad': '예측광량', 'regCd': '지역코드', 'temp': '예측온도', 'wspd': '예측풍속'})
-    tomorrow = tomorrow.rename(columns={'srad': '예측광량', 'regCd': '지역코드', 'temp': '예측온도', 'wspd': '예측풍속'})
+    # srad 컬럼을 숫자형(float)으로 변환
+    today['srad'] = pd.to_numeric(today['srad'], errors='coerce')
+    tomorrow['srad'] = pd.to_numeric(tomorrow['srad'], errors='coerce')
+
+    # srad를 J/cm²로 변환
+    today['누적광량(J/cm²)'] = today['srad'] * 3600 * 0.0001
+    tomorrow['누적광량(J/cm²)'] = tomorrow['srad'] * 3600 * 0.0001
+
+    # fcstDate별로 누적합을 계산
+    today['누적광량(J/cm²)'] = today.groupby('fcstDate')['누적광량(J/cm²)'].cumsum()
+    tomorrow['누적광량(J/cm²)'] = tomorrow.groupby('fcstDate')['누적광량(J/cm²)'].cumsum()
+
+    today = today.rename(columns={'srad': '예측광량(W/m²)', 'regCd': '지역코드', 'temp': '예측온도', 'wspd': '예측풍속'})
+    tomorrow = tomorrow.rename(columns={'srad': '예측광량(W/m²)', 'regCd': '지역코드', 'temp': '예측온도', 'wspd': '예측풍속'})
 
     today['지역명'] = site
     tomorrow['지역명'] = site
     return today, tomorrow
+
 
 
 def save_filtered_data_by_month(df):
@@ -83,6 +97,8 @@ def save_filtered_data_by_month(df):
     csv_data.seek(0)
     return csv_data
 
+
+import time  # 시간 측정을 위해 추가
 
 def main():
     # 사이드바에 선택 옵션 추가
@@ -110,6 +126,8 @@ def main():
             2. 시작 날짜와 종료 날짜를 선택합니다.
             3. 지역명을 선택합니다.
             4. 데이터를 찾고 다운로드 버튼을 클릭하여 데이터를 저장합니다.
+            
+            copyright 2024. Seungwon Seok(EthanSeok) All rights reserved.
             """)
 
             # JSON 파일에서 사이트 정보 추출
@@ -123,7 +141,7 @@ def main():
             st.title("날씨마루 기상 데이터 다운로드")
 
             # 날짜 입력 받기
-            start_date = st.date_input("시작 날짜", value=datetime.today().replace(day=1))
+            start_date = st.date_input("시작 날짜", value=datetime.today())
             end_date = st.date_input("종료 날짜", value=datetime.today())
 
             # JSON 파일에서 지역명 목록 추출
@@ -144,17 +162,32 @@ def main():
                 progress_bar = st.progress(0)
                 total_dates = len(base_dates)
 
+                # 예상 시간 표시할 자리
+                time_text = st.empty()
+
+                # 시작 시간 기록
+                start_time = time.time()
+
                 # 데이터를 처리
                 for i, date in enumerate(base_dates):
                     today_df, tomorrow_df = process_weather_data(date, reg_cd, site)
                     all_today_df = pd.concat([all_today_df, today_df], ignore_index=True)
                     all_tomorrow_df = pd.concat([all_tomorrow_df, tomorrow_df], ignore_index=True)
 
+                    # 현재까지 경과된 시간과 남은 시간을 계산
+                    elapsed_time = time.time() - start_time
+                    remaining_time = (total_dates - (i + 1)) * (elapsed_time / (i + 1))
+
+                    # 남은 시간을 분, 초로 변환
+                    mins, secs = divmod(remaining_time, 60)
+                    time_text.text(f"예상 남은 시간: {int(mins)}분 {int(secs)}초")
+
                     # 프로그레스 바 업데이트
                     progress_bar.progress((i + 1) / total_dates)
 
                 # 프로그레스 바 완료
                 progress_bar.empty()
+                time_text.empty()  # 예상 시간 메시지 삭제
 
                 # 날짜 포맷 변환 (yyyymmdd)
                 start_date_str = start_date.strftime('%Y%m%d')
