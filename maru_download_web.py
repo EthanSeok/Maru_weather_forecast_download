@@ -102,7 +102,8 @@ def main():
 
             - 시작 날짜와 종료 날짜를 설정하고, 지역명을 입력하면 해당 기간 동안의 기상 데이터를 다운로드할 수 있습니다.
             - 기상 데이터에는 일사량, 온도, 풍속 등의 정보가 포함되어 있습니다.
-            - 데이터는 지역별로 JSON 파일을 기반으로 검색할 수 있습니다.
+            - 데이터는 지역별로 아래 테이블을 참고하여 다운받으시면 됩니다.
+            - 데이터는 당일 예측 자료인 today_weather과 다음날의 예측차료인 tomorrow_weather로 나누어 다운받으실 수 있습니다.
 
             **사용 방법**
             1. 좌측의 "기상 데이터 다운로드" 페이지로 이동합니다.
@@ -155,15 +156,23 @@ def main():
                 # 프로그레스 바 완료
                 progress_bar.empty()
 
+                # 날짜 포맷 변환 (yyyymmdd)
+                start_date_str = start_date.strftime('%Y%m%d')
+                end_date_str = end_date.strftime('%Y%m%d')
+
+                # 파일명 생성: site_시작날짜_끝날짜.csv
+                file_name_today = f"{site}_{start_date_str}_{end_date_str}_today_weather.csv"
+                file_name_tomorrow = f"{site}_{start_date_str}_{end_date_str}_tomorrow_weather.csv"
+
                 # CSV 파일 저장 및 다운로드 버튼 추가
                 if not all_today_df.empty:
                     today_csv = save_filtered_data_by_month(all_today_df)
-                    st.download_button(label="오늘 데이터 CSV 다운로드", data=today_csv, file_name="today_weather.csv",
+                    st.download_button(label="오늘 데이터 CSV 다운로드", data=today_csv, file_name=file_name_today,
                                        mime="text/csv")
 
                 if not all_tomorrow_df.empty:
                     tomorrow_csv = save_filtered_data_by_month(all_tomorrow_df)
-                    st.download_button(label="내일 데이터 CSV 다운로드", data=tomorrow_csv, file_name="tomorrow_weather.csv",
+                    st.download_button(label="내일 데이터 CSV 다운로드", data=tomorrow_csv, file_name=file_name_tomorrow,
                                        mime="text/csv")
     except FileNotFoundError:
         st.error(f"JSON 파일을 찾을 수 없습니다: {json_file_path}")
