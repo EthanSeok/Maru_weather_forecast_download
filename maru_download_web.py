@@ -95,7 +95,7 @@ def main():
             json_data = json.load(f)
 
         if page == "서비스 설명":
-            st.title("날씨마루 예측 기상 데이터 다운로드")
+            st.title("날씨마루 예측 기상 자료 다운로드")
             st.write("""
             날씨마루는 태양광발전량예측을 위한 당일/다음날의 예측 광량, 온도, 풍속 데이터를 제공합니다.
             URL: https://bd.kma.go.kr/kma2020/fs/energySelect1.do?pageNum=5&menuCd=F050701000
